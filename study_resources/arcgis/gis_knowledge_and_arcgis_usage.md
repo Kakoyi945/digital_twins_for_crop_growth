@@ -182,6 +182,8 @@
    - 高度地图file选择高程图片
    ![高度地图导入](assets/高程数据导入.png)
    - 其他数据也直接拖入即可（如建筑数据等）
+3. 将做好的模型导出为游戏引擎常用3D文件格式
+   ![CityEngine模型导入到Unity3D](https://blog.csdn.net/ZJ_____W/article/details/115002359)
 
 ## 做一张中国行政区划图
 1. 导入经纬度数据
