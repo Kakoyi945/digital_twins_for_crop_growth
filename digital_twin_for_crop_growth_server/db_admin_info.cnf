@@ -1,0 +1,6 @@
+# db_admin_info.cnf
+[client]
+database = crop_study
+user = root
+password = 727420
+default-character-set = utf8

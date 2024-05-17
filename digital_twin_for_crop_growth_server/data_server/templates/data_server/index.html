@@ -1,0 +1,13 @@
+{% if crop %}
+    <ul>
+        <li>{{ location.statnum }}</li>
+        <li>{{ location.statCName }}</li>
+        <li>{{ location.statEName }}</li>
+        <li>{{ location.provCname }}</li>
+        <li>{{ location.provEname }}</li>
+        <li>{{ location.lon }}</li>
+        <li>{{ location.lat }}</li>
+    </ul>
+{% else %}
+    <p>No loction are available.</p>
+{% endif %}
