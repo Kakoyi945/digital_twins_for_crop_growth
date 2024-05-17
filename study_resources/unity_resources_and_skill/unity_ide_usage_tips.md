@@ -1,3 +1,11 @@
+## 之前看过的一些Unity学习课程
+### 入门视频
+- [【siki学院】零基础入门Unity3D - 教你做古迹探险类游戏【已完结】](https://www.bilibili.com/video/BV1xW41197HX/?spm_id_from=333.999.0.0&vd_source=587b2a305b836b2ee84d8ff1b4c49caa)
+- [通过案例驱动学习UGUI-2022宇宙最简单教程](https://www.bilibili.com/video/BV1ta411Q7Zu/?spm_id_from=333.999.0.0&vd_source=587b2a305b836b2ee84d8ff1b4c49caa)
+### 进阶视频
+- [【数字孪生-教程】UE5+Cesium智慧城市&园区全流程开发-数据篇](https://space.bilibili.com/353171605/favlist?fid=1061279605&ftype=create)
+- [Unity语句解释 设置小时分钟昼夜太阳位置（天气插件UniStorm昼夜时间设置）](https://www.bilibili.com/video/BV1Yw411z7dq/?spm_id_from=333.999.0.0)
+- [数字孪生开发智慧城市项目实战 unity/WebGL/mysql/Vue/C#](https://www.bilibili.com/video/BV1Fk4y1K7FN/?spm_id_from=333.999.0.0&vd_source=587b2a305b836b2ee84d8ff1b4c49caa)
 ## unity界面使用技巧
 1. 将摄像头与所在视角平行
    选择main camera，选择菜单栏的GameObject，选择其中的Align with view即可
