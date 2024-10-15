@@ -1,3 +1,19 @@
+## 说在前面
+### 将unitypackage导入后，还需要导入其他资源
+1. 导入XCharts(这是用于在Unity中绘制图表的包)
+   - [官网](https://xcharts-team.github.io/)
+   - 可以使用URL导入，URL如下：https://github.com/XCharts-Team/XCharts.git
+2. 将WorldScene、CountyScene、CropScene加入到构建设置中
+   先打开构建设置
+   ![build settings](assets/add_new_scene.png)
+   依次打开scene文件夹下的各个场景，然后点击add_open_scene将其加入场景即可
+   ![add_open_scene](assets/add_open_scene.png) 
+3. 修改后端服务器地址
+   打开Scripts/NetworkConnectionHelper.cs文件，将服务器地址改为你运行的后端服务器所在的地址
+   ![change_url](assets/change_url.png)
+4. 后端使用django，前端使用vue+nginx的方式，如果只是在unity里跑，可以不用配置前端，直接运行unity就可以
+5. 之前还做了一个vue实现的[中国地图](https://github.com/Kakoyi945/ChinaMap)，不过没有将unity项目和它整合起来，如果你要用这个中国地图的话，可以将Unity中的WorldScene删掉，然后将vue和Unity结合起来。
+
 ## 之前看过的一些Unity学习课程
 ### 入门视频
 - [【siki学院】零基础入门Unity3D - 教你做古迹探险类游戏【已完结】](https://www.bilibili.com/video/BV1xW41197HX/?spm_id_from=333.999.0.0&vd_source=587b2a305b836b2ee84d8ff1b4c49caa)
@@ -83,6 +99,9 @@
 4. 从blender导入的人物模型需要勾选Model中的Bake Axies Conversion选项，因为unity使用左手系坐标，而blender使用右手系坐标，如下：
    ![BakeAxiesCon](assets/BakeAxisConversion.png)
 
+### obj文件导入
+1. obj的3D模型通常包括几个内容：.obj文件（保存mesh），.mtl文件（包含材质和贴图信息，必须确保obj和mtl在同一文件夹下，且文件名对应正确）
+
 ### 从其他软件处导入模型
 1. 从3DMAX中导出模型并导入到unity中：
    解决VRAY材质无法随着fbx导出的问题：可查看3dmax笔记中“模型的导入导出”部分
@@ -138,7 +157,21 @@
    按住shift，再用左键刷可以减少树
    选择Paint details->edit details->add grass texture
    通过Opacity修改草的密度
-
+7. 将mesh转化为terrain
+   [教程](https://blog.csdn.net/yuyingwin/article/details/80179937)
+   [文件下载地址](https://www.lmhpoly.com/tutorials/convert-mesh-to-unity-terrain)
+8. 将外部资源下载的树添加到terrain的tree中：
+   由于外部资源的模型可能比较复杂，比如一个空的父物体，内部有很多个子物体，每个物体有一个mesh，而在Add tree时，Unity找不到物体的mesh，这样会导致如下报错：
+   ```shell
+   The tree xxx couldn't be instanced because the prefab contains no valid mesh renderer
+   UnityEditor.HostView:OnGUI()
+   ```
+   正确做法是：
+   - 首先给父物体添加组件LOD Group，LOD Group的作用如下：
+     [LOD Group的作用](https://zhuanlan.zhihu.com/p/586413318)
+     LOD的作用就是设置摄像头在距离物体多远时渲染该物体的哪些模型，这样做可以使得摄像头距离物体较远时少渲染一些模型以减少性能开销
+   - 然后将子物体的mesh放到LOD0、LOD1、LOD2中，如下图所示：
+     ![Add Tree](assets/AddTree.png)
 ## camera/light相关操作
 1. 调节光的亮度以更容易看清细节
    directional light->indensity->将该值调小
@@ -538,6 +571,13 @@
 16.   
 
 ## 天气盒子
+### 设置环境天空盒
+1. 打开天空盒子设置界面
+   ![skybox_setting](assets/set_skybox.png)
+2. 选择环境，将material进行修改即可更换天气
+   ![skybox_setting](assets/set_skybox2.png)
+3. 
+
 ### UniStorm使用
 1. 导入包->window->unistorm->create weather system
    ![创建unistorm](assets/CreateWeatherSystem.png)
@@ -553,4 +593,861 @@
    前几步同2，在脚本中添加函数，代码如下：
    ![改变时间](assets/DayTimeChange.png)
    创建一个ScrollBar，将UniStormController拖入ScrollBar的OnValueChanged，将DayTimeChange函数传入即可，UniStorm将0-1之间的小数转化为‘小时-分钟’
-4. 
+
+## Shader基础
+### 综述
+1. 渲染流水线：从三维场景出发，最后生成一个在屏幕二维场景的图像
+2. 一般分为三个阶段：
+   - 应用阶段
+     输出渲染图元——点、线、面
+     开发者任务：准备好场景数据、剔除不可见物体，设置好每个模型使用的材质(漫反色射、高光反射)、纹理、shader
+   - 几何阶段：输出屏幕的顶点信息、处理所有和我们要绘制的几何相关的事物(决定要绘制的图元是什么、怎么绘制、在哪里绘制)
+   - 光栅化阶段：使用上一个阶段的数据来阐述屏幕上的像素，并渲染出最终图像
+3. GPU-CPU通信：
+   ![GPU-CPU](assets/CPU-GPU.png)
+4. GPU流水线：
+   ![GPU-pipeline](assets/GPU_pipeline.png)
+   ![GPU-pipeline2](assets/GPU_pipeline2.png)
+5. 概念理解：
+   ![conceptions](assets/conceptions.png)
+### Unity Shader基础
+1. material和shader
+   ![material和shader](assets/material_and_shader.png)
+2. uinty shader
+   ![shader in unity](assets/shader_in_unity.png)
+3. shaderlab
+   ![shader lab](assets/ShaderLab.png)
+   当shader无法解决时就调用fallback
+   操作过程：
+   - 给shader一个名字
+     ![name](assets/give_shader_a_name.png)
+   - shader树形
+     ![properities](assets/shader_properities.png)
+   - 重要成员：subshader
+     ![subshader](assets/subshader01.png)
+     ![subshader](assets/subshader02.png)
+     ![subshader](assets/subshader03.png)
+   - fallback
+     ![fallback](assets/fallback.png)
+   - 着色器
+     ![color-encoder](assets/coler-encoder.png)
+   - 选择
+     ![selections](assets/selection.png)
+   - 答疑
+     ![qa](assets/shaderQ&A.png)
+     ![qa](assets/shaderQ&A2.png)
+### 数学基础
+1. 笛卡尔坐标系：
+   ![笛卡尔坐标系](assets/coordinaters.png)
+   左手/右手坐标系：伸出左手/右手前三个手指头(Unity是左手坐标系)
+   正向：左手/右手的四根手指弯曲的方向
+   
+2. 矩阵的几何意义：
+   ![matrix](assets/matrix.png)
+   使用齐次坐标进行平移和放缩操作：
+   ![translations_and_zip](assets/translation.png)
+
+### UnityShader基础
+1. 制作一个简单的定点/片元着色器
+   - 一个顶点片元着色器包括如下几个部分：
+     ![construction](assets/shader_study01.png)
+   - 步骤：
+     首先创建一个material
+     再创建一个shader
+     编写shader代码，如下所示：
+     ```csharp
+     // 着色器的名字
+      Shader "Custom/shader01"
+      {
+         Properties  // 自定义的属性
+         {
+
+         }
+         // 定义了一个子着色器，Unity会尝试使用这个子着色器来渲染对象。如果当前硬件不支持这个子着色器，Unity将尝试使用Fallback指定的着色器。
+         SubShader 
+         {
+            Pass{ // 定义了一个渲染通道，每个子着色器可以包含多个渲染通道
+                  CGPROGRAM
+
+                  #pragma vertex vert // 指定顶点着色器函数名为vert
+                  #pragma fragment frag // 指定片段（像素）着色器函数名为frag
+
+                  // 定义顶点着色器函数vert，它接收一个位置参数v，并返回一个SV_POSITION，即屏幕空间中的坐标。
+                  float4 vert(float4 v:POSITION):SV_POSITION {
+                     return UnityObjectToClipPos(v);  // 模型空间转换到裁剪空间
+                  }
+
+                  // 定义片段着色器函数frag，它没有接收任何参数，返回一个fixed4类型的值，表示像素的颜色和透明度
+                  fixed4 frag(): SV_Target{
+                     return fixed4(0.5, 1.0, 1.0, 1.0);
+                  }
+
+                  ENDCG
+            }
+         }
+         // 指定如果当前硬件不支持这个子着色器，Unity将使用名为"Diffuse"的备用着色器
+         FallBack "Diffuse"
+      }
+     ```
+     将该shader赋值给material，最后将该material放到其他物体上
+   - 获取模型数据
+     ![model_data](assets/get_model_data.png)
+     其中用a2v来替换vertex函数的形参，即改为: float4 vert(a2v v){}
+   - 顶点着色器与片元着色器沟通
+     ![f2v](assets/f2v.png)
+     ```csharp
+      Shader "Custom/shader02"
+      {
+         Properties
+         {
+            _Color("Color Tint", Color) = (1,1,1,1)
+         }
+         SubShader
+         {
+            PASS{
+                  CGPROGRAM
+
+                  #pragma vertex vert
+                  #pragma fragment frag
+
+                  uniform fixed4 _Color;
+
+                  struct a2v{
+                     float4 vertex: POSITION;
+                     float3 normal: NORMAL;
+                     float4 texcoord: TEXCOORD0;   // 顶点纹理的原始坐标
+                  };
+
+                  struct v2f{
+                     float4 pos: SV_POSITION;
+                     fixed3 color: COLOR0;
+                  };
+                  
+                  v2f vert(a2v v){
+                     v2f o; // 输出
+                     o.pos = UnityObjectToClipPos(v.vertex);
+                     o.color = v.normal * 0.5 + fixed3(0.5, 0.5, 0.5);
+                     return o;
+                  }
+
+                  // 将vert的输出作为frag的输入，从而实现信息交流
+                  fixed4 frag(v2f i): SV_Target {
+                     fixed3 o = i.color;
+                     o *= _Color.rgb;
+                     return fixed4(o, 1.0);
+                  }
+
+                  ENDCG
+            }
+
+         }
+         FallBack "Diffuse"
+      }
+
+     ```
+   - 使用属性(放在properties大括号内)
+     ![properties](assets/use_properties.png)
+   - CG/HLSL语义
+     ![semantics](assets/CG_Semantic.png)
+   - debug
+     ![debug](assets/shader_debug.png)
+   - float,half or fixed
+     ![float/half/fixed](assets/float_half_fixed.png)
+   - 
+### Unity中的基础光照
+1. 散射(scattering)
+   ![scattering](assets/scattering.png)
+2. 吸收
+   ![absorption](assets/absorption.png)
+3. 着色
+   ![color](assets/color.png)
+   BRDF光照模型
+   ![BRDF](assets/BRDFLinghtingModel.png)
+4. 标准光照模型
+   - 环境光
+     ![environment_light](assets/environment_light.png)
+   - 自发光
+     ![cemissive](assets/cemissive.png)
+   - 漫反射
+     ![diffuse](assets/diffuse.png)
+   - 高光反射
+     ![specular](assets/specular.png)
+5. 去哪里计算光照模型
+   ![where_to_calculate](assets/where_to_calculate_light_model.png)
+6. 设置环境光
+   window->rendering->lighting打开光照设置
+   然后就可以看到环境光的设置界面了
+7. 实现漫反射
+   - 逐顶点的漫反射(在vertex中计算漫反射)
+     ```csharp
+      Shader "Custom/shader03"
+      {
+         Properties
+         {
+            _Diffuse("Diffuse", Color) = (1, 1, 1, 1)   // 设置漫反射的颜色为白色
+         }
+         SubShader
+         {
+            PASS
+            {
+                  // 设置了一个标签，指定这个通道使用的是"ForwardBase"光照模式，这是Unity中用于处理基本光照的模式
+                  Tags {"LightMode" = "ForwardBase"}
+
+                  CGPROGRAM
+
+                  #pragma vertex vert
+                  #pragma fragment frag
+
+                  // 包含了Unity的Lighting.cginc文件，这是一个包含了光照计算的库
+                  #include "Lighting.cginc" 
+
+                  // 在CGPROGRAM代码块中重新定义了_Diffuse属性，以便在着色器代码中使用
+                  fixed4 _Diffuse;    
+
+                  struct a2v {
+                     float4 vertex: POSITION;
+                     float3 normal: NORMAL;
+                  };
+
+                  struct v2f {
+                     float4 pos: SV_POSITION;
+                     fixed3 color: COLOR;
+                  };
+
+                  v2f vert(a2v v){
+                     v2f o;
+
+                     o.pos = UnityObjectToClipPos(v.vertex);
+                     
+                     // 计算环境光对物体的影响
+                     fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz;
+
+                     // 将法线从模型空间转换到世界空间并标准化
+                     fixed3 worldNormal = normalize(mul(v.normal, (float3x3)unity_WorldToObject));
+
+                     // 获取并标准化世界空间中的光源方向
+                     fixed3 worldLight = normalize(_WorldSpaceLightPos0.xyz);
+
+                     // 计算漫反射光照，包括光源颜色、物体颜色和颜色强度(法线与光源方向的点积)
+                     fixed3 diffuse = _LightColor0.rgb * _Diffuse.rgb * saturate(dot(worldNormal, worldLight));
+
+                     // 将环境光和漫反射光相加得到最终颜色
+                     o.color = ambient + diffuse;
+                     
+                     return o;
+                  }
+
+                  fixed4 frag(v2f i): SV_Target{
+                     return fixed4(i.color, 1.0);
+                  }
+
+                  ENDCG
+
+            }
+         }
+         FallBack "Diffuse"
+      }
+     ```
+   - 逐像素的漫反射(在frag中计算漫反射)
+     ```csharp
+      Shader "Custom/shader04"
+      {
+         Properties
+         {
+            _Diffuse("Diffuse", Color) = (1, 1, 1, 1)   // 设置漫反射的颜色为白色
+         }
+         SubShader
+         {
+            PASS
+            {
+                  // 设置了一个标签，指定这个通道使用的是"ForwardBase"光照模式，这是Unity中用于处理基本光照的模式
+                  Tags {"LightMode" = "ForwardBase"}
+
+                  CGPROGRAM
+
+                  #pragma vertex vert
+                  #pragma fragment frag
+
+                  // 包含了Unity的Lighting.cginc文件，这是一个包含了光照计算的库
+                  #include "Lighting.cginc" 
+
+                  // 在CGPROGRAM代码块中重新定义了_Diffuse属性，以便在着色器代码中使用
+                  fixed4 _Diffuse;    
+
+                  struct a2v {
+                     float4 vertex: POSITION;
+                     float3 normal: NORMAL;
+                  };
+
+                  struct v2f {
+                     float4 pos: SV_POSITION;
+                     fixed3 worldNormal: TEXCOORD0;
+                  };
+
+                  v2f vert(a2v v){
+                     v2f o;
+
+                     o.pos = UnityObjectToClipPos(v.vertex);
+
+                     // 将物体法线转换为世界法线
+                     o.worldNormal = mul(v.normal, (float3x3)unity_WorldToObject);
+                     
+                     return o;
+                  }
+
+                  fixed4 frag(v2f i): SV_Target{
+
+                     // 得到环境光对物体的影响
+                     fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz;
+
+                     // 将世界空间的法线正则化
+                     fixed3 worldNormal = normalize(i.worldNormal);
+
+                     // 将世界空间的光源方向正则化
+                     fixed3 worldLightDir = normalize(_WorldSpaceLightPos0.xyz);
+
+                     // 计算漫反射颜色
+                     fixed3 diffuse = _LightColor0.rgb * _Diffuse.rgb * saturate(dot(worldNormal, worldLightDir));
+
+                     fixed3 color = ambient + diffuse;
+
+                     return fixed4(color, 1.0);
+                  }
+
+                  ENDCG
+
+            }
+         }
+         FallBack "Diffuse"
+      }
+     ```
+   - 半兰伯特光照模型：改善暗面颜色一样的问题，这是由于saturate函数将小于0的值直接截断为0导致的，因此半兰伯特采用另一种方法计算光照强度
+     ```csharp
+      // 计算漫反射颜色
+      fixed halfLambert = dot(worldNormal, worldLightDir) * 0.5 + 0.5;
+      fixed3 diffuse = _LightColor0.rgb * _Diffuse.rgb * halfLambert;
+     ```
+   - 
+8. 实现高反射
+   - 计算方法：
+     ![specular_calculate](assets/specular_calculate.png)
+   - 逐像素高反射(逐顶点的代码在此基础上改动一下，改动方法于漫反射类似)
+     ```csharp
+      Shader "Custom/shader06"
+      {
+         Properties
+         {
+            _Diffuse("Diffuse", Color) = (1, 1, 1, 1)   // 设置漫反射的颜色为白色
+            _Specular("Specular", Color) = (1, 1, 1, 1) // 设置高光反射为白色
+            _Gloss("Gloss", Range(8.0, 256)) = 20       // 设置光泽度，影响光的锐利度
+         }
+         SubShader
+         {
+            PASS
+            {
+                  // 设置了一个标签，指定这个通道使用的是"ForwardBase"光照模式，这是Unity中用于处理基本光照的模式
+                  Tags {"LightMode" = "ForwardBase"}
+
+                  CGPROGRAM
+
+                  #pragma vertex vert
+                  #pragma fragment frag
+
+                  // 包含了Unity的Lighting.cginc文件，这是一个包含了光照计算的库
+                  #include "Lighting.cginc" 
+
+                  // 在CGPROGRAM代码块中重新定义了属性，以便在着色器代码中使用
+                  fixed4 _Diffuse;    
+                  fixed4 _Specular;
+                  float _Gloss;
+
+                  struct a2v {
+                     float4 vertex: POSITION;
+                     float3 normal: NORMAL;
+                  };
+
+                  struct v2f {
+                     float4 pos: SV_POSITION;
+                     fixed3 worldNormal: TEXCOORD0;
+                     float3 worldPos: TEXCOORD1;
+                  };
+
+                  v2f vert(a2v v){
+                     v2f o;
+
+                     o.pos = UnityObjectToClipPos(v.vertex);
+
+                     // 将物体法线转换为世界法线
+                     o.worldNormal = mul(v.normal, (float3x3)unity_WorldToObject);
+                     
+                     // 将物体顶点从物体空间转换为世界空间
+                     o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+
+                     return o;
+                  }
+
+                  fixed4 frag(v2f i): SV_Target{
+
+                     // 得到环境光对物体的影响
+                     fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz;
+
+                     // 将世界空间的法线正则化
+                     fixed3 worldNormal = normalize(i.worldNormal);
+
+                     // 将世界空间的光源方向正则化
+                     fixed3 worldLightDir = normalize(_WorldSpaceLightPos0.xyz);
+
+                     // 计算漫反射光照
+                     fixed3 diffuse = _LightColor0.rgb * _Diffuse.rgb * saturate(dot(worldNormal, worldLightDir));
+                     
+                     // 计算世界空间的反射光角度并正则化
+                     fixed3 reflectDir = normalize(reflect(worldLightDir, worldNormal));
+
+                     // 计算世界空间的摄像头角度并正则化
+                     fixed3 viewDir = normalize(_WorldSpaceCameraPos.xyz - i.worldPos.xyz);
+
+                     // 计算高反射光照
+                     fixed3 specular = _LightColor0.rgb * _Specular.rgb * pow(saturate(dot(reflectDir, viewDir)), _Gloss);
+
+                     fixed3 color = ambient + diffuse + specular;
+
+                     return fixed4(color, 1.0);
+                  }
+
+                  ENDCG
+
+            }
+         }
+         FallBack "Diffuse"
+      }
+     ```
+9. 使用Unity内置函数帮助计算反射
+   ![cginc](assets/cginc_help_function.png)
+   如下示例：
+   ```csharp
+   // 使用cginc内置函数将世界空间的光源方向正则化
+   fixed3 worldLightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
+   // 使用cginc内置函数计算世界空间的摄像头角度并正则化
+   fixed3 viewDir = normalize(UnityWorldSpaceViewDir(i.worldPos));
+   ```
+   
+### 基础纹理
+1. 单张纹理：
+   示例：
+   - 首先给物体放入material，并给material放入shader，shader代码如下：
+      ```csharp
+      Shader "Custom/shader08"
+      {
+         Properties{
+            // 定义材质颜色的属性。这个属性通常用于设置材质的整体颜色或色调（Tint），它会影响材质在渲染时的颜色表现
+            _Color("Color Tint", Color) = (1, 1, 1, 1)
+            _MainTex("Main Tex", 2D) = "white" {}   // 主纹理，用于贴图
+            _Specular("Specular", Color) = (1, 1, 1, 1)
+            _Gloss("Gloss", Range(8.0, 256)) = 20        
+         }
+
+         SubShader{
+            Pass{
+                  Tags {"LightMode" = "ForwardBase"}
+
+                  CGPROGRAM
+
+                     #pragma vertex vert
+                     #pragma fragment frag
+
+                     #include "Lighting.cginc"
+
+                     fixed4 _Color;
+                     sampler2D _MainTex;
+                     // _MainTex_ST通常用于计算纹理坐标的变换，以适应不同的平铺和偏移需求。包含四个属性：
+                     // x - Tiling U：控制纹理在U轴（水平）方向上的平铺次数。例如，如果一个纹理的宽度是1单位，那么_MainTex_ST.x设置为2将使纹理在宽度上重复两次。
+                     // y - Tiling V：控制纹理在V轴（垂直）方向上的平铺次数。与U轴类似，这个值决定了纹理在高度上重复的次数。
+                     // z - Offset U：控制纹理在U轴上的偏移量。正值会将纹理向右移动，负值会向左移动。
+                     // w - Offset V：控制纹理在V轴上的偏移量。正值会将纹理向下移动，负值会向上移动
+                     float4 _MainTex_ST;
+                     fixed4 _Specular;
+                     float _Gloss;
+
+                     struct a2v {
+                        float4 vertex: POSITION;
+                        float3 normal: NORMAL;
+                        float4 texcoord: TEXCOORD0;
+                     };
+
+                     struct v2f {
+                        float4 pos: SV_POSITION;
+                        float3 worldNormal: TEXCOORD0;
+                        float3 worldPos: TEXCOORD1;
+                        float2 uv: TEXCOORD2;
+                     };
+
+                     v2f vert(a2v v){
+                        v2f o;
+                        o.pos = UnityObjectToClipPos(v.vertex);
+                        o.worldNormal = UnityObjectToWorldNormal(v.normal);
+                        o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+                        // 这里，v.texcoord.xy 是顶点的原始纹理坐标，_MainTex_ST.xy 用于平铺，_MainTex_ST.zw 用于偏移
+                        o.uv = v.texcoord.xy * _MainTex_ST.xy + _MainTex_ST.zw;
+                        // 或者直接调用
+                        // o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
+                        return o;
+                     }
+
+                     fixed4 frag(v2f i): SV_Target{
+                        fixed3 worldNormal = normalize(i.worldNormal);
+                        fixed3 worldLightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
+
+                        // tex2D用于从二维纹理（2D texture）中采样颜色值。这个函数根据提供的纹理坐标（UV坐标）来查找并返回纹理中对应的像素颜色
+                        // albedo是物体的反射特性，这里是让纹理的颜色于基础颜色相乘
+                        fixed3 albedo = tex2D(_MainTex, i.uv).rgb * _Color.rgb;
+                        // 后续全部的内容都要乘以albedo
+                        fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz * albedo;
+                        fixed3 diffuse = _LightColor0.rgb * albedo * max(0, dot(worldNormal, worldLightDir));
+                        fixed3 viewDir = normalize(UnityWorldSpaceViewDir(i.worldPos));
+                        fixed3 halfDir = normalize(worldLightDir + viewDir);
+                        fixed3 specular = _LightColor0.rgb * _Specular.rgb * pow(max(0, dot(worldNormal, halfDir)), _Gloss);
+
+                        return fixed4(ambient + diffuse + specular, 1.0);
+                     }
+
+                  ENDCG
+            }
+         }
+
+      }
+      ```
+   - 再将一个texture放入该shader即可
+2. 凹凸纹理：
+   - 法线纹理：
+     物体空间的法线纹理
+     ![normal map](assets/object_space_normal_map.png)
+     切线空间的法线纹理
+     ![normal map](assets/tangent_space_normal_map.png)
+   - 使用切线空间的法线纹理实现凹凸纹理：
+     ```csharp
+      Shader "Custom/shader09"
+      {
+         Properties
+         {
+            _Color ("Color", Color) = (1, 1, 1, 1)
+            _MainTex ("Main Tex", 2D) = "white" {}
+            _BumpMap ("Normal Map", 2D) = "bump" {} // 法线贴图
+            _BumpScale ("Bump Scale", Float) = 1.0  // 控制法线贴图强度
+            _Specular ("Specular", Color) = (1, 1, 1, 1)
+            _Gloss ("Gloss", Range(8.0, 256)) = 20
+         }
+         SubShader
+         {
+            PASS{
+                  Tags { "LightMode"="ForwardBase" }
+
+                  CGPROGRAM
+
+                  #pragma vertex vert
+                  #pragma fragment frag
+
+                  #include "Lighting.cginc"
+
+                  fixed4 _Color;
+                  sampler2D _MainTex;
+                  float4 _MainTex_ST;
+                  sampler2D _BumpMap;
+                  float4 _BumpMap_ST;
+                  float _BumpScale;
+                  fixed4 _Specular;
+                  float _Gloss;
+
+                  struct a2v {
+                     float4 vertex: POSITION;
+                     float3 normal: NORMAL;
+                     float4 tangent: TANGENT; // 指定每个顶点的切线向量
+                     float4 texcoord: TEXCOORD0;
+                  };
+
+                  struct v2f {
+                     float4 pos: SV_POSITION;
+                     float4 uv: TEXCOORD0;
+                     float3 lightDir: TEXCOORD1;
+                     float3 viewDir: TEXCOORD2;
+                  };
+
+                  v2f vert(a2v v) {
+                     v2f o;
+                     o.pos = UnityObjectToClipPos(v.vertex);
+
+                     // o.uv.xy存储了调整后的主纹理坐标，这些坐标将用于在片段着色器中采样主纹理(_MainTex)
+                     o.uv.xy = v.texcoord * _MainTex_ST.xy + _MainTex_ST.zw;
+                     // o.uv.zw 存储了调整后的法线贴图坐标，这些坐标将用于片段着色器中采样法线贴图(_BumpMap)
+                     o.uv.zw = v.texcoord * _BumpMap_ST.xy + _BumpMap_ST.zw;
+
+                     // 以下代码可用在归一化或未归一化情况下使用
+
+                     // 计算从模型空间到切线空间的转换矩阵，这包括世界空间法线、切线和副法线的计算
+                     // 副法线(binormal)是与切线和法线垂直的向量,cross函数用于计算两个向量叉乘的结果
+                     // v.tangent.w用于翻转双法线，w存储惯用手系，始终为1或-1
+                     fixed3 worldNormal = UnityObjectToWorldNormal(v.normal);
+                     fixed3 worldTangent = UnityObjectToWorldDir(v.tangent.xyz);
+                     fixed3 worldBinormal = cross(worldNormal, worldTangent) * v.tangent.w;
+
+                     // 将世界空间切换到切线空间
+                     float3x3 worldToTangent = float3x3(worldTangent, worldBinormal, worldNormal);
+                     
+                     // 将世界空间的光照方向、摄像头视线方向转换到切线空间
+                     o.lightDir = mul(worldToTangent, UnityWorldSpaceLightDir(v.vertex));
+                     o.viewDir = mul(worldToTangent, UnityWorldSpaceViewDir(v.vertex));
+
+                     return o;
+                  }
+
+                  fixed4 frag(v2f i):SV_Target{
+                     fixed3 tangentLightDir = normalize(i.lightDir);
+                     fixed3 tangentViewDir = normalize(i.viewDir);
+
+                     // 采样法线纹理
+                     fixed4 packedNormal = tex2D(_BumpMap, i.uv.zw);
+                     fixed3 tangentNormal;
+
+
+                     tangentNormal = UnpackNormal(packedNormal); // 将压缩的法线贴图纹理坐标转换回归一化法线向量
+                     tangentNormal.xy *= _BumpScale;
+                     // 切线空间的法线纹理只存储了xy信息
+                     // 假设法线向量为(x,y,z)，它可以由(x,y,0)和(0,0,z)两条边组成，既然法线向量是一条单位向量，
+                     // 这两条边构成的三角形又是直角三角形，那么其实只要知道一条边长，就可以用勾股定理计算出另一条边长
+                     tangentNormal.z = sqrt(1.0 - saturate(dot(tangentNormal.xy, tangentNormal.xy)));
+
+                     fixed3 albedo = tex2D(_MainTex, i.uv).rgb * _Color.rgb;
+                     fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz * albedo;
+
+                     fixed3 diffuse = _LightColor0.rgb * albedo * max(0, dot(tangentNormal, tangentLightDir));
+                     
+                     fixed3 halfDir = normalize(tangentLightDir + tangentViewDir);
+                     fixed3 specular = _LightColor0.rgb * _Specular.rgb * pow(max(0, dot(tangentNormal, halfDir)), _Gloss);
+
+                     return fixed4(ambient + diffuse + specular, 1.0);
+                  }
+
+                  ENDCG
+            }
+         }
+         FallBack "Specular"
+      }
+     ```
+3. 渐变纹理
+   - 尽管在一开始，我们在渲染中使用纹理是为了定义一个物体的颜色，但后来人们发现，纹理其实可以用来存储任何表面属性。一种常见的用法就是使用渐变纹理来控制漫反射光照的结果。在之前计算漫反射光照结果的时候，我们都是使用表面法线和光照方向的点积结果与材质的反射率相乘来得到表面的漫反射光照。但有时，我们需要更加灵活的控制光照。使用这种技术，可以保证物体的轮廓线相比于之前使用的传统漫反射光照更加明显，而且能够提供多种色调变化
+   - 示例：
+   ```csharp
+   Shader "Custom/shader10"
+   {
+      Properties
+      {
+         _Color ("Color", Color) = (1, 1, 1, 1)
+         _RampTex ("Ramp Tex", 2D) = "white" {} // 该纹理通常包含了不同亮度级别的颜色样本，用于映射表面的光照强度
+         _Specular ("Specular", Color) = (1, 1, 1, 1)
+         _Gloss ("Gloss", Range(8.0, 256)) = 20
+      }
+      SubShader
+      {
+         PASS{
+               Tags { "LightMode"="ForwardBase" }
+
+               CGPROGRAM
+
+               #pragma vertex vert
+               #pragma fragment frag
+
+               #include "Lighting.cginc"
+
+               fixed4 _Color;
+               sampler2D _RampTex;
+               float4 _RampTex_ST;
+               fixed4 _Specular;
+               float _Gloss;
+
+               struct a2v {
+                  float4 vertex: POSITION;
+                  float3 normal: NORMAL;
+                  float4 texcoord: TEXCOORD0;
+               };
+
+               struct v2f {
+                  float4 pos: SV_POSITION;
+                  float3 worldNormal: TEXCOORD0;
+                  float3 worldPos: TEXCOORD1;
+                  float2 uv: TEXCOORD2;
+               };
+
+               v2f vert(a2v v) {
+                  v2f o;
+                  o.pos = UnityObjectToClipPos(v.vertex);
+
+                  o.worldNormal = UnityObjectToWorldNormal(v.normal);
+
+                  o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+
+                  o.uv = TRANSFORM_TEX(v.texcoord, _RampTex);
+
+                  return o;
+               }
+
+               fixed4 frag(v2f i):SV_Target{
+                  fixed3 worldNormal = normalize(i.worldNormal);
+
+                  fixed3 worldLightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
+
+                  fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.xyz;
+
+                  fixed halfLambert = 0.5*dot(worldNormal, worldLightDir) + 0.5;
+                  // halfLambert 是通过计算法线和光照方向的点积得到的，它表示了表面接收到的光照强度。
+                  // 然后，使用这个值作为Ramp Texture的UV坐标，通过 tex2D 函数采样纹理，得到对应的颜色值。
+                  // 这个颜色值随后被用来调制漫反射光照的颜色
+                  fixed3 diffuseColor = tex2D(_RampTex, fixed2(halfLambert, halfLambert)).rgb * _Color.rgb;
+                  fixed3 diffuse = _LightColor0.rgb * diffuseColor;
+                  
+                  fixed3 viewDir = normalize(UnityWorldSpaceViewDir(i.worldPos));
+
+                  fixed3 halfDir = normalize(worldLightDir + viewDir);
+                  fixed3 specular = _LightColor0.rgb * _Specular.rgb * pow(max(0, dot(worldNormal, halfDir)), _Gloss);
+
+                  return fixed4(ambient + diffuse + specular, 1.0);
+               }
+
+               ENDCG
+         }
+      }
+      FallBack "Specular"
+   }
+   ```
+4. 遮罩纹理
+   - 遮罩可以允许我们保护某些区域，使它们免于 某些修改。常见的应用是在制作地形材质时需要混合多张图片，例如表现草地的纹理、表现石子的纹理、表现裸露土地的纹理等，使用遮罩纹理可以控制如何混合这些纹理
+   - 使用遮罩纹理的一般流程是：通过采样得到遮罩纹理的纹素值，然后使用其中某个（或几个）通道的值（texel.r）来与某种表面属性进行相乘，这样当该通道的值为0时，可以保护表面不受该属性影响。
+
+### 透明效果
+1. 深度测试与深度写入
+   - 渲染顺序问题：对于不透明（opaque）物体，不考虑它们的渲染顺序也能得到正确的排序效果，这是由于强大的深度缓冲（depth buffer，也被称为z-buffer）的存在。
+   - 深度缓冲原理：它的基本思想是：根据深度缓冲中的值来判断该片元距离摄像机的距离，当渲染一个片元时，需要把它的深度值和已经存在于深度缓冲区中的值进行比较（如果开启了深度测试），如果它的值距离摄像机更远，那么说明这个片元不应该被渲染到屏幕上（有物体挡住了它）；否则这个片元应该覆盖掉此时颜色缓冲中的像素值，并把它的深度值更新到深度缓冲中（如果开启了深度写入）
+   - 当使用透明度混合时，我们必须关闭深度写入（ZWrite），否则半透明物体后面的物体将会被剔除
+   - 基于上面两点，渲染引擎一般都会先对物体进行排序，再渲染，常用的方法是：
+    （1）先渲染所有不透明物体，并开启它们的深度测试和深度写入。
+    （2）把半透明物体按它们距离摄像机的远近进行排序，然后按照从后往前的顺序渲染这些半透明物体，并开启它们的深度测试，但关闭深度写入。
+2. 透明度测试和透明度混合
+   Unity通常使用两种方法实现透明效果
+   - 透明度测试：它是一种“霸道极端”的机制，只要一个片元的透明度不满足条件（通常是小于某个阈值），那么它对应的片元就会被舍弃。被舍弃的片元不会再进行任何处理，也不会对颜色缓冲产生任何影响；否则就会按照普通的不透明物体的处理方式来处理它，即进行深度测试、深度写入等。也就是说，透明度测试是不需要关闭深度写入的，它和其它不透明物体最大的不同是它会根据透明度来舍弃一些片元。虽然简单，但是它产生的效果也很极端，要么完全透明，即看不到，要么完全不透明，就像不透明物体那样。
+   - 透明度混合：它会使用当前片元的透明度作为混合因子，与已经存储在颜色缓冲中的颜色进行混合，得到新的颜色。但是透明度混合需要关闭深度写入，这使我们要非常小心物体的渲染顺序。需要注意的是，透明度混合只关闭了深度写入，但没有关闭深度测试。这意味着当使用透明度深度混合渲染一个片元时，还是会比较它的深度值与当前深度缓冲区中的深度值，如果它的深度值距离摄像机更远，那么就不会再进行混合操作。这一点决定了，当一个不透明物体出现在一个透明物体前面，而我们先渲染了不透明物体，它仍然可以正常地遮住不透明物体。也即是说，对于透明混合度来说，深度缓冲是只读的
+3. UnityShader的渲染队列
+   Unity为了解决渲染顺序的问题提供了渲染队列（render queue）这一解决方案
+   ![render queue](assets/shader_queue.png)
+4. 如果想要通过透明度测试实现透明效果，代码示例如下：
+   ```csharp
+   Shader "Custom/shader11"
+   {
+      Properties{
+         // 定义材质颜色的属性。这个属性通常用于设置材质的整体颜色或色调(Tint),它会影响材质在渲染时的颜色表现
+         _Color("Color Tint", Color) = (1, 1, 1, 1)
+         _MainTex("Main Tex", 2D) = "white" {}   // 主纹理,用于贴图
+         _Cutoff("Alpha Cutoff", Range(0, 1)) = 0.5 // 决定调用clip进行透明度测试时使用的判断条件
+      }
+
+      SubShader{
+         // RenderType标签可以让Unity把这个shader归入到提前定义的组,即TransparentCutout
+         // 把IgnoreProjector设置为True,可以让这个shader不受投影器的影响
+         Tags{"Queue"="AlphaTest""IgnoreProjector"="True""RenderType"="TransparentCutout"}
+         Pass{
+               Tags {"LightMode" = "ForwardBase"}
+
+               CGPROGRAM
+
+                  #pragma vertex vert
+                  #pragma fragment frag
+
+                  #include "Lighting.cginc"
+
+                  fixed4 _Color;
+                  sampler2D _MainTex;
+                  float4 _MainTex_ST;
+                  fixed _Cutoff;
+
+                  struct a2v {
+                     float4 vertex: POSITION;
+                     float3 normal: NORMAL;
+                     float4 texcoord: TEXCOORD0;
+                  };
+
+                  struct v2f {
+                     float4 pos: SV_POSITION;
+                     float3 worldNormal: TEXCOORD0;
+                     float3 worldPos: TEXCOORD1;
+                     float2 uv: TEXCOORD2;
+                  };
+
+                  v2f vert(a2v v){
+                     v2f o;
+                     o.pos = UnityObjectToClipPos(v.vertex);
+                     o.worldNormal = UnityObjectToWorldNormal(v.normal);
+                     o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+                     o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
+                     return o;
+                  }
+
+                  fixed4 frag(v2f i): SV_Target{
+                     fixed3 worldNormal = normalize(i.worldNormal);
+                     fixed3 worldLightDir=normalize(UnityWorldSpaceLightDir(i.worldPos));
+                     fixed4 texColor=tex2D(_MainTex,i.uv);
+                     //Alpha text
+                     clip(texColor.a-_Cutoff);
+                     //Equal to
+                     //if((Texcolor.a-_Cutoff)<0.0){discard};
+                     fixed3 albedo=texColor.rgb*_Color.rgb;
+                     fixed3 ambient=UNITY_LIGHTMODEL_AMBIENT.xyz*albedo;
+                     fixed3 diffuse=_LightColor0.rgb*albedo*max(0,dot(worldNormal,worldLightDir));
+                     return fixed4(ambient+diffuse,1.0);
+                  }
+
+               ENDCG
+         }
+      }
+      // 和之前使用的Diffuse和Specular不同，这次我们使用内置的Transparent/Cutout/VertexLit来作为回调Shader。
+      // 这不仅能够保证我们编写的SubShader无法在当前显卡上工作时可以有合适的替代Shader，
+      // 还可以保证使用透明度测试的物体可以正确的向其他物体投射阴影
+      FallBack "Transparent/Cutout/VertexLit"
+   }
+   ```
+   如果想要通过透明度混合来实现透明效果，代码中应包含：
+   ```csharp
+   SubShader{
+      Tags{"Queue"="Transparent"}
+      Pass{
+         ZWrite Off
+         ......
+      }
+   }
+   ```
+5. 想要实现透明度混合，不仅需要将渲染队列设置为Transparent，还需要使用Unity提供的混合命令——Blend
+   - Blend是Unity提供的设置混合模式的命令。想要实现半透明的效果就需要把当前自身的颜色和已经存在于颜色缓冲中的颜色值进行混合，混合时使用的函数就是由该指令决定的。
+   - Blend命令如下图：
+     ![Blend](assets/blend_orders.png)
+   - 在本节里，我们会使用第二种语义，即Blend SrcFactor DstFactor来进行混合。需要注意的是，这个命令在设置混合因子的同时也开启了混合模式。这是因为只有开启了混合之后，设置片元的透明通道才有意义，而Unity在我们使用Blend命令的时候就自动帮我们打开了
+   - 我们会把源颜色的混合因子SrcFactor设为SrcAlpha，而目标颜色的混合因子DstFactor设置为OneMinusSrcAlpha。则混合后的颜色为：
+     $$
+       DstColor_{new} = SrcAlpha\times SrcColor+(1-SrcAlpha)\times DstColor_{old}
+     $$
+   - 示例代码如下：
+     
+
+## Unity接入真实地图
+### 技术现状
+1. 当前，要在Unity项目中引入真实地图，有两种途径：
+   - 通过地图SDK
+   - 通过Unity的资源商店购买一些地图资源及支撑代码
+2. 当前Unity引擎下的地图SDK有：
+   - ArcGIS SDK for Unity (免费，不支持WebGL)
+   - MapBox SDK for Unity (付费，宣称支持WebGL平台)
+   - Google Map SDK for Unity (已停止维护，将在12月停止服务)
+   - Bing Map SDK for Unity (使用人数较少，不支持WebGL)
+   - SuperMap SDK for Game Engine，超图研究院为Unity和Unreal Engine都开发了地图SDK （尝试中）
+3. 目前而言，所有免费的Unity地图SDK都具有以下特点：
+   - 要求项目为HDRP，至少为URP
+   - 暂不支持WebGL平台，因此如果使用这些地图SDK引入地图，项目将无法打包为Web
+   - 如果使用Unity Asset购买地图资源，目前最成熟的插件为online-maps，官方收费，但是可以通过https://unityassets4free.com/白嫖资源%0D%0A使用online-maps添加地图，可以成功，但是使用online-maps引入的地图都为二维地图，而且仅作为简单图层，并没有给后续添加图层设计接口
+### 实现过程
+1. [将项目升级为URP](https://blog.csdn.net/lizijie7471619/article/details/136009257)
+2. [从URP回退到默认管线的方法](https://wenku.csdn.net/answer/64386a21027d41cf87ddd0f93d22a15b)
